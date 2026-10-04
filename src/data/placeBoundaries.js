@@ -161,7 +161,7 @@ const UNITED_STATES = new Set([
 
 const loadPlaceIndex = createRetryableLoader(async () => {
   packLoads.placeIndex += 1;
-  const index = await loadBundledJson(placeFiles.INDEX_URL);
+  const index = await loadBundledJson(placeFiles.INDEX_URL());
   const states = index.states.map((state) => ({
     ...state,
     key: normalizePlaceName(state.name),
@@ -218,13 +218,21 @@ export function cachedPackFiles() {
   };
 }
 
+/** Builds a pack file URL on use (never at import); unknown keys fail loudly. */
+function packUrl(urls, key) {
+  const build = urls[key];
+  if (typeof build !== 'function')
+    throw new Error(`No bundled boundary file for ${key}`);
+  return build();
+}
+
 function loadState(st) {
   return stateLoaders.load(st, () =>
     createRetryableLoader(async () => {
       packLoads.placeStates.push(st);
       const [{ meta }, pack] = await Promise.all([
         loadPlaceIndex(),
-        loadBundledJson(placeFiles.STATE_URLS[st]),
+        loadBundledJson(packUrl(placeFiles.STATE_URLS, st)),
       ]);
       const byKey = new Map();
       for (const feature of pack.features) {
@@ -253,7 +261,7 @@ let neighborhoodIndex = null;
 
 const loadNeighborhoodIndex = createRetryableLoader(async () => {
   packLoads.neighborhoodIndex += 1;
-  neighborhoodIndex = await loadBundledJson(neighborhoodFiles.INDEX_URL);
+  neighborhoodIndex = await loadBundledJson(neighborhoodFiles.INDEX_URL());
   return neighborhoodIndex;
 });
 
@@ -265,7 +273,7 @@ function loadTile(key) {
       packLoads.neighborhoodTiles.push(key);
       const [index, tile] = await Promise.all([
         loadNeighborhoodIndex(),
-        loadBundledJson(neighborhoodFiles.TILE_URLS[`t${key}`]),
+        loadBundledJson(packUrl(neighborhoodFiles.TILE_URLS, `t${key}`)),
       ]);
       const precision = index.meta.precision;
       const byKey = new Map();
