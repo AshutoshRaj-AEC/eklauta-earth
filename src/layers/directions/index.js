@@ -551,6 +551,8 @@ export function createDirectionsLayer({ services }) {
   let _clickHandler = null;
   let _renderHeld = false;
   let _rowControlsListener = null;
+  /** @type {Set<Function>} subscribers to routeSnapshot() changes */
+  const _routeListeners = new Set();
   let _dataManager = null;
   /** Set when arming failed because another tool holds the pointer. */
   let _pointerBlocked = false;
@@ -603,7 +605,27 @@ export function createDirectionsLayer({ services }) {
     } catch {
       /* listener is best-effort */
     }
+    for (const listener of _routeListeners) {
+      try {
+        listener(routeSnapshot());
+      } catch {
+        /* listeners are best-effort */
+      }
+    }
     _dataManager?.refreshLayerStats?.();
+  }
+
+  /** Read-only view of the endpoints and route for other UI (navigation panel). */
+  function routeSnapshot() {
+    return {
+      enabled: _enabled,
+      mode: _mode,
+      a: _a,
+      b: _b,
+      status: _status,
+      error: _error,
+      route: _route,
+    };
   }
 
   function syncRenderHold() {
@@ -1370,6 +1392,22 @@ export function createDirectionsLayer({ services }) {
       return directionsStats(state());
     },
 
+    /** Endpoints, status and the current route (null until one is ready). */
+    getRoute() {
+      return routeSnapshot();
+    },
+
+    /**
+     * Be told whenever the endpoints, status or route change.
+     * @param {(snapshot: object) => void} listener
+     * @returns {() => void} Unsubscribe.
+     */
+    addRouteListener(listener) {
+      if (typeof listener !== 'function') return () => {};
+      _routeListeners.add(listener);
+      return () => _routeListeners.delete(listener);
+    },
+
     /**
      * Keep a manager handle so placement and routing can repaint the row.
      * @param {object} dataManager DataLayerManager instance.
@@ -1407,6 +1445,7 @@ export function createDirectionsLayer({ services }) {
       _shellSeams = null;
       _dataManager = null;
       _rowControlsListener = null;
+      _routeListeners.clear();
       if (_stepPoints) {
         services.sprites.unregisterSpriteCollection('directions', _stepPoints);
         viewer.scene.primitives.remove(_stepPoints);

@@ -5,6 +5,7 @@ import { initImageryBoxTool } from '../ui/imageryBoxTool.js';
 import { createRecentImageryPanel } from '../ui/recentImagery.js';
 import { initGevVoiceCommands } from '../voice/gevRealtime.js';
 import { installViews, isEmbeddedInline } from './embed.js';
+import { createNavigationPanel } from '../navigation/navigationPanel.js';
 import { installScopeMask, destroyScopeMask } from '../scopeMask.js';
 import {
   installRenderGovernor,
@@ -92,6 +93,16 @@ export function createApplicationTools({
       data.presentation.attachRecentImagery(null);
       imageryBoxTool?.destroy();
     });
+  }
+  // EklautA Earth: my location, typed directions and live follow navigation.
+  if (!isEmbeddedInline()) {
+    const navigation = createNavigationPanel({
+      viewer,
+      dataManager,
+      shell: styleManager,
+      placeSearch,
+    });
+    defer(() => navigation.destroy());
   }
   if (startChrome)
     defer(startChrome({ loadingScreen, styleManager, dataManager, signal }));
