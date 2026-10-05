@@ -3,6 +3,7 @@ import { StyleManager as ApplicationShell } from './applicationShell.js';
 import { LocationSearch } from './location.js';
 import {
   CITY_POIS,
+  MENU_CITIES,
   GLOBE_VIEW,
   flyToGlobeView,
   flyToPresetLocation,
@@ -67,6 +68,7 @@ export class StyleManager extends ApplicationShell {
       ...options,
       services: {
         CITY_POIS,
+        MENU_CITIES,
         GLOBE_VIEW,
         flyToGlobeView,
         flyToPresetLocation,

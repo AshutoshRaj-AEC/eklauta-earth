@@ -2,7 +2,6 @@ import * as Cesium from 'cesium';
 
 /**
  * Camera presets for notable locations.
- * Phase 1 default: fly to Austin, TX on load.
  */
 export const CAMERA_PRESETS = {
   austin: {
@@ -47,13 +46,35 @@ export function flyToPreset(viewer, presetName, duration = 3.0) {
 }
 
 /**
- * Set camera to Austin on load with a cinematic fly-in.
+ * Opening view: Hinjewadi, Pune. The fly-in ends south-southwest of Shivaji
+ * Chowk so the chowk sits mid-frame along the heading. Heights are WGS84
+ * ellipsoidal; local ground is ~500 m, so the end height is ~900 m above it.
+ */
+export const START_VIEW = Object.freeze({
+  label: 'Hinjewadi, Pune',
+  overview: { lon: 73.739, lat: 18.5913, height: 25000 },
+  arrival: {
+    lon: 73.7352,
+    lat: 18.5777,
+    height: 1400,
+    heading: 15,
+    pitch: -30,
+  },
+});
+
+/**
+ * Set camera to the start view on load with a cinematic fly-in.
  * @returns {Function} Cancels the pending or active startup flight.
  */
-export function flyToAustin(viewer) {
+export function flyToStartView(viewer) {
+  const { overview, arrival } = START_VIEW;
   // Start from a high altitude, then fly down
   viewer.camera.setView({
-    destination: Cesium.Cartesian3.fromDegrees(-97.7431, 30.2672, 25000),
+    destination: Cesium.Cartesian3.fromDegrees(
+      overview.lon,
+      overview.lat,
+      overview.height,
+    ),
     orientation: {
       heading: Cesium.Math.toRadians(0),
       pitch: Cesium.Math.toRadians(-90),
@@ -65,10 +86,14 @@ export function flyToAustin(viewer) {
   const timer = setTimeout(() => {
     if (viewer.isDestroyed()) return;
     viewer.camera.flyTo({
-      destination: Cesium.Cartesian3.fromDegrees(-97.7431, 30.2672, 600),
+      destination: Cesium.Cartesian3.fromDegrees(
+        arrival.lon,
+        arrival.lat,
+        arrival.height,
+      ),
       orientation: {
-        heading: Cesium.Math.toRadians(15),
-        pitch: Cesium.Math.toRadians(-30),
+        heading: Cesium.Math.toRadians(arrival.heading),
+        pitch: Cesium.Math.toRadians(arrival.pitch),
         roll: 0.0,
       },
       duration: 4.0,

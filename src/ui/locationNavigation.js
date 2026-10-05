@@ -100,7 +100,8 @@ export class LocationNavigation {
   }
 
   _initLocationBar() {
-    const { CITY_POIS, searchAndFlyTo, LocationSearch } = this.services;
+    const { CITY_POIS, MENU_CITIES, searchAndFlyTo, LocationSearch } =
+      this.services;
     this._locationControls?.destroy();
     this._locationLookupUnsubscribe?.();
     this._locationLookup?.destroy();
@@ -137,7 +138,7 @@ export class LocationNavigation {
         statusCity: this._locationMiniCity,
         statusPoi: this._locationMiniPoi,
       },
-      cities: CITY_POIS,
+      cities: MENU_CITIES || CITY_POIS,
       getExpandedCity: () => this._expandedCityId,
       onCity: (id) => this._onCityPillClick(id),
       onPoi: (id, index) => this._onPoiClick(id, index),
