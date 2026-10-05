@@ -1,0 +1,20 @@
+# Render Blueprint: one Node web service that serves the built app and its
+# /api data routes (the same server `vite preview` runs locally).
+# Deploy: render.com → New → Blueprint → pick this repository.
+services:
+  - type: web
+    name: eklauta-earth
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    # The server only answers Host names it knows. Render sets
+    # RENDER_EXTERNAL_HOSTNAME to this service's onrender.com name; add a custom
+    # domain by setting GEV_ALLOWED_HOSTS in the dashboard (comma-separated).
+    startCommand: GEV_ALLOWED_HOSTS="$RENDER_EXTERNAL_HOSTNAME,$GEV_ALLOWED_HOSTS" npx vite preview --host 0.0.0.0 --port $PORT
+    envVars:
+      # package.json engines: >=24.14 <25 or 26.x
+      - key: NODE_VERSION
+        value: 24.14.0
+      # vite (the server) is a devDependency; keep it installed.
+      - key: NPM_CONFIG_PRODUCTION
+        value: 'false'
