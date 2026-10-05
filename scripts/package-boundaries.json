@@ -2045,6 +2045,8 @@
       "src/navigation/navigationPanel.js",
       "src/navigation/geolocation.js",
       "src/navigation/routeProgress.js",
+      "src/navigation/placeMemory.js",
+      "src/navigation/placeSuggest.js",
       "src/layers/alpr/tileRecords.js",
       "src/sources/capability.js",
       "src/sources/openFreeMap.js",
