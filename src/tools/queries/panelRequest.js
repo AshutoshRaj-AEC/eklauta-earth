@@ -1,5 +1,5 @@
 /**
- * The God's Eye View panel's requests. A panel cannot reach the app's server
+ * The EklautA Earth panel's requests. A panel cannot reach the app's server
  * itself: hosts serve panels from their own sites and may refuse other
  * addresses, such as a server on the user's machine. The panel asks this
  * tool instead, and it requests the path from the app's server. Large
@@ -237,9 +237,9 @@ function checkedPath(path, baseUrl) {
 
 export const panelRequest = defineTool({
   name: PANEL_REQUEST_TOOL,
-  title: "God's Eye View panel request",
+  title: 'EklautA Earth panel request',
   description:
-    "Loads a file or data for the God's Eye View panel from the app's " +
+    "Loads a file or data for the EklautA Earth panel from the app's " +
     'server. Only the panel calls this; it does not answer questions.',
   inputSchema: {
     type: 'object',
@@ -272,7 +272,7 @@ export const panelRequest = defineTool({
     if (!isPanelKey(args.key, services.app.panelKey))
       throw new ToolError(
         'invalid_arguments',
-        "Only the God's Eye View panel may make this request",
+        'Only the EklautA Earth panel may make this request',
       );
     const state = panelState(services.app);
     forgetExpired(state);

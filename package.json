@@ -1,18 +1,21 @@
 {
-  "name": "gods-eye-view",
+  "name": "eklauta-earth",
   "private": true,
   "version": "0.2.1",
-  "description": "A real-time intelligence console for planet Earth — photorealistic 3D globe, live aircraft/ships/satellites/earthquakes/CCTV, and hands-free voice control. Runs in a browser.",
+  "description": "EklautA Earth — a live 3D globe of public data: aircraft, satellites, weather, earthquakes and more. Based on God's Eye View by Bilawal Sidhu.",
   "type": "module",
   "license": "MIT",
-  "author": "Bilawal Sidhu",
-  "homepage": "https://github.com/bilawalsidhu/gods-eye-view#readme",
+  "author": "Ashutosh Raj",
+  "contributors": [
+    "Bilawal Sidhu (original God's Eye View)"
+  ],
+  "homepage": "https://github.com/AshutoshRaj-AEC/eklauta-earth#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/bilawalsidhu/gods-eye-view.git"
+    "url": "https://github.com/AshutoshRaj-AEC/eklauta-earth.git"
   },
   "bugs": {
-    "url": "https://github.com/bilawalsidhu/gods-eye-view/issues"
+    "url": "https://github.com/AshutoshRaj-AEC/eklauta-earth/issues"
   },
   "engines": {
     "node": ">=24.14.0 <25 || >=26 <27"

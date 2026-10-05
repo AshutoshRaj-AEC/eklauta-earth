@@ -940,7 +940,7 @@ export async function loadTxdotSourcesFromOpenData() {
       const resp = await fetch(TXDOT_CCTV_STATUS_URL(district), {
         headers: {
           Accept: 'application/json',
-          'User-Agent': 'gods-eye-view-cctv-proxy/1.0',
+          'User-Agent': 'eklauta-earth-cctv-proxy/1.0',
         },
         signal: AbortSignal.timeout(CCTV_SOURCE_FETCH_TIMEOUT_MS),
       });
@@ -1379,7 +1379,7 @@ export async function loadNswSourcesFromOpenData() {
     const resp = await fetch(NSW_CAMERAS_URL, {
       headers: {
         Accept: 'application/json',
-        'User-Agent': 'gods-eye-view-cctv-proxy/1.0',
+        'User-Agent': 'eklauta-earth-cctv-proxy/1.0',
       },
       signal: AbortSignal.timeout(CCTV_SOURCE_FETCH_TIMEOUT_MS),
     });

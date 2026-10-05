@@ -1,4 +1,4 @@
-/** Links that open God's Eye View at a view. */
+/** Links that open EklautA Earth at a view. */
 
 import { VIEW_PROPERTIES, createView, viewUrl } from '../../view/index.js';
 import { defineTool, ToolError } from '../catalog.js';
@@ -106,10 +106,10 @@ function appBase(services) {
 
 export const showInGodsEyeView = defineTool({
   name: 'show_in_gods_eye_view',
-  title: "Show in God's Eye View",
+  title: 'Show in EklautA Earth',
   description:
-    "Shows a view in God's Eye View: in clients that display apps, the live " +
-    "God's Eye View globe in the conversation; everywhere, a link that opens " +
+    'Shows a view in EklautA Earth: in clients that display apps, the live ' +
+    'EklautA Earth globe in the conversation; everywhere, a link that opens ' +
     'it. Pass the view another answer returned, or describe one: an area ' +
     'framed from above or a camera position, with chosen data layers, visual ' +
     'style and map, optionally following an aircraft (or riding in its ' +
@@ -130,7 +130,7 @@ export const showInGodsEyeView = defineTool({
     });
     const url = viewUrl(base, view);
     return {
-      summary: `Open ${label} in God's Eye View: ${url}`,
+      summary: `Open ${label} in EklautA Earth: ${url}`,
       data: { url, view },
     };
   },

@@ -1,30 +1,18 @@
 <div align="center">
 
-# 🌐 God's Eye View
+<img src="docs/brand/eklauta-earth-logo.webp" alt="EklautA Earth logo: a globe with an orbiting satellite" width="280">
 
-[![CI](https://github.com/bilawalsidhu/gods-eye-view/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/bilawalsidhu/gods-eye-view/actions/workflows/ci.yml) [![Reached #1 on GitHub Trending](https://img.shields.io/badge/%231_GitHub_Trending-thank_you!-F0A63C?style=flat-square&logo=github)](https://x.com/bilawalsidhu/status/2093798887815348521)
+# EklautA Earth
 
-### A spy-satellite simulator in your browser — then you realize the sources are public and the data is real.
+### A live 3D globe of the world's public data — right in your browser.
 
-Photorealistic 3D globe. Live aircraft, ships, satellites, earthquakes, traffic, and public cameras. Hands-free voice control powered by a realtime AI agent.
+Live aircraft, satellites, weather, earthquakes, fires and more on a 3D globe, with optional voice control.
 
-_No place left behind._
+_The world, live._
 
-![Orbital HUD, a tracked live globe, FLIR terrain — then OPEN SOURCED](docs/media/hero-open-source-reveal.gif)
+**EklautA Earth is a personal, non-commercial fork of [God's Eye View](https://github.com/bilawalsidhu/gods-eye-view) by Bilawal Sidhu and contributors, used under the MIT License.** The rest of this README is adapted from the original project; screenshots and GIFs below show the original app.
 
-<a href="https://www.youtube.com/@bilawalsidhu">
-  <img src="docs/media/youtube-popular-videos.png" alt="The God's Eye View video series on YouTube" width="100%">
-</a>
-
-▶️ **From the project behind the viral God's Eye View series** _(formerly WorldView)_ — [5M+ on YouTube](https://youtube.com/playlist?list=PL6qSg2I-7_koPbDnSMo0QeeHX_RknA2uv&si=nBGYMoHWQw41v93Q) · [25M+ across socials](https://www.google.com/search?q=god%27s+eye+view)
-
-🏆 **Reached #1 on GitHub Trending, daily and weekly · August 2026**
-
-**[#8 Product of the Day](https://www.producthunt.com/products/god-s-eye-view?launch=god-s-eye-view)** · Hunted by Chris Messina, creator of the hashtag
-
-_“pretty cool”_ — [Brendan Eich](https://x.com/BrendanEich/status/2094592096401490266), creator of JavaScript and co-founder of Mozilla and Brave · Featured on **[Pinokio](https://pinokio.co/posts/01m1m4p9xxm3qw7dnnpj2wr93g)**
-
-⚡ **Start without API keys.** Install with [Pinokio](https://pinokio.co/apps/github-com-bilawalsidhu-gods-eye-view) or run locally from the terminal. Add optional keys inside the app. **[→ Quick Start](#-quick-start)**
+⚡ **Start without API keys.** Run locally from the terminal. Add optional keys inside the app. **[→ Quick Start](#-quick-start)**
 
 </div>
 
@@ -123,8 +111,8 @@ Use **Node.js 24.x (24.14.0 or later) or 26.x**. The setup doctor warns about
 Node 25, which is end-of-life.
 
 ```bash
-git clone https://github.com/bilawalsidhu/gods-eye-view.git
-cd gods-eye-view
+git clone https://github.com/AshutoshRaj-AEC/eklauta-earth.git
+cd eklauta-earth
 npm ci
 npm run doctor
 npm run dev
@@ -564,6 +552,6 @@ One heads-up from the inside: build in this space for a week and you learn that 
 
 ▶️ [Watch the God's Eye View series](https://youtube.com/playlist?list=PL6qSg2I-7_koPbDnSMo0QeeHX_RknA2uv&si=nBGYMoHWQw41v93Q) · 📬 [Map the World](https://maptheworld.ai/) — the newsletter behind the project
 
-**🌐 God's Eye View. No place left behind.**
+**🌐 EklautA Earth. The world, live.** Built on [God's Eye View](https://github.com/bilawalsidhu/gods-eye-view).
 
 </div>
