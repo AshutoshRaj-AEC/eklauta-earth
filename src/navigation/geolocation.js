@@ -104,7 +104,7 @@ export function watchFixes(
       if (fix) onFix(fix);
     },
     (error) => onError?.(describeGeoError(error, env)),
-    { enableHighAccuracy: true, timeout: 20_000, maximumAge: 2_000 },
+    { enableHighAccuracy: true, timeout: 20_000, maximumAge: 0 },
   );
   return () => geo.clearWatch(id);
 }

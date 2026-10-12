@@ -304,8 +304,42 @@
 
 .nav-live-next {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 12px;
+}
+
+.nav-live-arrow {
+  flex: none;
+  width: 58px;
+  height: 58px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: var(--accent-dim);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  font: 700 34px/1 var(--font-sans);
+}
+
+.nav-live-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.nav-live-speed {
+  flex: none;
+  min-width: 58px;
+  text-align: center;
+  font: 700 15px/1.1 var(--font-mono);
+  color: var(--text-primary);
+}
+
+.nav-live-speed:empty {
+  display: none;
+}
+
+.nav-live .nav-actions {
+  flex-wrap: wrap;
 }
 
 .nav-live-dist {
@@ -334,6 +368,49 @@
     bottom: auto;
     width: auto;
   }
+}
+
+/* Ride view: while navigating, only the road, the route and the banner. The
+   map credit line is deliberately left untouched — the data licences require
+   it, and creditAttribution.test.mjs models every rule that moves it. */
+body.nav-ride #title-bar,
+body.nav-ride #style-indicator,
+body.nav-ride #top-center-actions,
+body.nav-ride #global-loading-status,
+body.nav-ride #traffic-sync-chip,
+body.nav-ride #cctv-sync-chip,
+body.nav-ride #pp-toggles,
+body.nav-ride #param-slider-panel,
+body.nav-ride #clean-view-exit,
+body.nav-ride #command-dock,
+body.nav-ride #left-panel-stack,
+body.nav-ride #right-context-rail,
+body.nav-ride #intel-hud,
+body.nav-ride #scope-mask,
+body.nav-ride #world-overlay-actions,
+body.nav-ride #first-run-launcher,
+body.nav-ride #key-setup-chip,
+body.nav-ride #nav-fabs {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+body.nav-ride #nav-panel {
+  top: 12px;
+  bottom: auto;
+  left: 50%;
+  right: auto;
+  width: min(440px, calc(100vw - 24px));
+  transform: translateX(-50%);
+}
+
+body.nav-ride .nav-live-dist {
+  font-size: 30px;
+}
+
+body.nav-ride .nav-live-instr {
+  font-size: 17px;
 }
 
 /* Cockpit owns the camera and the screen. */

@@ -13,13 +13,19 @@ import * as Cesium from 'cesium';
 import { MENU_CITIES, flyToLandmark } from '../locations.js';
 import { viewportBias } from '../annotations/annotationResolver.js';
 import { cachedGroundFloor, warmGroundFloor } from '../data/groundFloor.js';
-import { governorRequestRender } from '../renderGovernor.js';
+import {
+  governorRequestRender,
+  holdContinuousRender,
+  releaseContinuousRender,
+} from '../renderGovernor.js';
 import {
   formatRouteDistance,
   formatRouteDuration,
 } from '../data/routeSteps.js';
 import { getCurrentFix, watchFixes } from './geolocation.js';
 import { createPlaceMemory, matchScore } from './placeMemory.js';
+import { createFollowSmoother } from './followSmoother.js';
+import { formatSpeedKmh, maneuverArrow } from './maneuvers.js';
 import {
   SEARCH_MIN_CHARS,
   biasAround,
@@ -42,15 +48,28 @@ export const REROUTE_MIN_INTERVAL_MS = 15_000;
 const ANNOUNCE_AHEAD_M = 150;
 const MODES = [
   ['car', '🚗 DRIVE'],
+  ['ride', '🏍️ RIDE'],
+  ['bike', '🚲 CYCLE'],
   ['foot', '🚶 WALK'],
-  ['bike', '🚲 BIKE'],
 ];
+/** Routing profile per travel mode: a motorbike rides the car network. */
+export function routingProfile(mode) {
+  return mode === 'ride' ? 'car' : mode;
+}
 /** Chase-camera distances per travel mode. */
 const CHASE = {
   car: { backM: 240, upM: 170 },
-  bike: { backM: 150, upM: 110 },
+  ride: { backM: 150, upM: 95 },
+  bike: { backM: 130, upM: 90 },
   foot: { backM: 90, upM: 75 },
 };
+const MODE_KEY = 'eklauta:nav:mode:v1';
+/** Ground height eases toward new readings so the camera never hops. */
+const FLOOR_TAU_S = 1.2;
+const FLOOR_REFRESH_MS = 400;
+/** While navigating: fewer, coarser tiles and 30 fps to save battery and data. */
+const RIDE_TARGET_FPS = 30;
+const RIDE_MIN_SCREEN_SPACE_ERROR = 3;
 
 const ground = { cachedGroundFloor, warmGroundFloor };
 
@@ -102,12 +121,17 @@ const PANEL_HTML = `
   </div>
   <div class="nav-live" data-nav="live" hidden>
     <div class="nav-live-next">
-      <div class="nav-live-dist" data-nav="next-dist">—</div>
-      <div class="nav-live-instr" data-nav="next-instr">Waiting for GPS…</div>
+      <div class="nav-live-arrow" data-nav="next-arrow" aria-hidden="true">↑</div>
+      <div class="nav-live-text">
+        <div class="nav-live-dist" data-nav="next-dist">—</div>
+        <div class="nav-live-instr" data-nav="next-instr">Waiting for GPS…</div>
+      </div>
+      <div class="nav-live-speed" data-nav="speed" aria-label="Speed"></div>
     </div>
     <div class="nav-live-meta" data-nav="live-meta"></div>
     <div class="nav-actions">
       <button type="button" class="nav-btn" data-nav="recenter" hidden>⌖ RE-CENTER</button>
+      <button type="button" class="nav-btn" data-nav="map-ui" aria-pressed="false" title="Show or hide the map panels">☰ MAP UI</button>
       <button type="button" class="nav-btn" data-nav="voice" aria-pressed="false">🔇 VOICE</button>
       <button type="button" class="nav-btn nav-btn-danger" data-nav="stop">■ STOP</button>
     </div>
@@ -166,11 +190,20 @@ export function createNavigationPanel({
     liveMeta: q(panel, 'live-meta'),
     recenter: q(panel, 'recenter'),
     voice: q(panel, 'voice'),
+    nextArrow: q(panel, 'next-arrow'),
+    speed: q(panel, 'speed'),
+    mapUi: q(panel, 'map-ui'),
     stop: q(panel, 'stop'),
     status: q(panel, 'status'),
   };
   el.from.value = MY_LOCATION_LABEL;
   let mode = 'car';
+  try {
+    const saved = win?.localStorage?.getItem(MODE_KEY);
+    if (MODES.some(([id]) => id === saved)) mode = saved;
+  } catch {
+    /* storage blocked: default mode */
+  }
   for (const [id, label] of MODES) {
     const chip = doc.createElement('button');
     chip.type = 'button';
@@ -200,6 +233,12 @@ export function createNavigationPanel({
   let announcedStep = null;
   let voiceOn = false;
   let wakeLock = null;
+  const smoother = createFollowSmoother();
+  let removeFrameLoop = null;
+  let floor = { value: null, target: null, checkedAt: 0, lastFrame: 0 };
+  let savedRendering = null;
+  /** Development diagnostics: frames drawn and the last pose (see debugState). */
+  const debug = { frames: 0, pose: null };
 
   const directions = () => dataManager?.layers?.get('directions')?.module;
   const setStatus = (text, kind = '') => {
@@ -462,7 +501,7 @@ export function createNavigationPanel({
         memory.remember(place);
       }
       const layer = await ensureDirectionsLayer();
-      layer.setParams({ mode });
+      layer.setParams({ mode: routingProfile(mode) });
       layer.placeEndpoint('a', { lat: a.lat, lon: a.lon });
       layer.placeEndpoint('b', { lat: b.lat, lon: b.lon });
       setStatus('Finding a route…');
@@ -506,34 +545,102 @@ export function createNavigationPanel({
     }
   }
 
-  function followCamera(fix, progress) {
-    if (followPaused || !viewer || viewer.isDestroyed?.()) return;
-    const heading = Number.isFinite(fix.heading)
-      ? fix.heading
-      : progress.heading;
-    const target = progress.offRoute ? fix : progress.snapped;
-    const eye = chaseCamera(target, heading, CHASE[mode] || CHASE.car);
-    const floor =
-      cachedGroundFloor(target.lat, target.lon) ??
-      viewer.scene.globe?.getHeight?.(
-        Cesium.Cartographic.fromDegrees(target.lon, target.lat),
-      ) ??
-      0;
-    warmGroundFloor([{ lat: target.lat, lon: target.lon }]);
-    viewer.camera.flyTo({
+  /** Ground height under a point: eased, and never back to sea level once known. */
+  function groundAt(lat, lon, nowMs) {
+    if (nowMs - floor.checkedAt >= FLOOR_REFRESH_MS || floor.target === null) {
+      floor.checkedAt = nowMs;
+      let height = cachedGroundFloor(lat, lon);
+      if (!Number.isFinite(height)) {
+        const sampled = viewer.scene.globe?.getHeight?.(
+          Cesium.Cartographic.fromDegrees(lon, lat),
+        );
+        if (Number.isFinite(sampled)) height = sampled;
+      }
+      warmGroundFloor([{ lat, lon }]);
+      if (Number.isFinite(height)) floor.target = height;
+    }
+    if (floor.target === null) return floor.value ?? 0;
+    const dt = floor.lastFrame ? (nowMs - floor.lastFrame) / 1000 : 0;
+    floor.lastFrame = nowMs;
+    floor.value =
+      floor.value === null
+        ? floor.target
+        : floor.value +
+          (floor.target - floor.value) * (1 - Math.exp(-dt / FLOOR_TAU_S));
+    return floor.value;
+  }
+
+  function onFrame() {
+    if (!navigating || destroyed || !viewer || viewer.isDestroyed?.()) return;
+    const nowMs = Date.now();
+    const pose = smoother.sample(
+      nowMs,
+      route && routeCache
+        ? { geometry: route.geometry, cumulative: routeCache.cumulative }
+        : null,
+    );
+    if (!pose) return;
+    debug.frames += 1;
+    debug.pose = pose;
+    if (marker)
+      marker.position = Cesium.Cartesian3.fromDegrees(pose.lon, pose.lat, 0);
+    if (followPaused || !Number.isFinite(pose.heading)) return;
+    const eye = chaseCamera(pose, pose.heading, CHASE[mode] || CHASE.car);
+    const groundM = groundAt(pose.lat, pose.lon, nowMs);
+    viewer.camera.setView({
       destination: Cesium.Cartesian3.fromDegrees(
         eye.lon,
         eye.lat,
-        floor + eye.upM,
+        groundM + eye.upM,
       ),
       orientation: {
-        heading: Cesium.Math.toRadians(heading),
+        heading: Cesium.Math.toRadians(pose.heading),
         pitch: Cesium.Math.toRadians(eye.pitchDeg),
         roll: 0,
       },
-      duration: 0.9,
-      easingFunction: Cesium.EasingFunction.LINEAR_NONE,
     });
+  }
+
+  function startFrameLoop() {
+    stopFrameLoop();
+    holdContinuousRender('navigation');
+    removeFrameLoop = viewer.scene.preRender.addEventListener(onFrame);
+  }
+
+  function stopFrameLoop() {
+    if (!removeFrameLoop) return;
+    removeFrameLoop();
+    removeFrameLoop = null;
+    releaseContinuousRender('navigation');
+  }
+
+  /** Lighter rendering while navigating; restored exactly on stop. */
+  function lightenRendering(on) {
+    const globe = viewer?.scene?.globe;
+    if (on && !savedRendering) {
+      savedRendering = {
+        fps: viewer.targetFrameRate,
+        sse: globe?.maximumScreenSpaceError,
+      };
+      viewer.targetFrameRate = RIDE_TARGET_FPS;
+      if (globe)
+        globe.maximumScreenSpaceError = Math.max(
+          globe.maximumScreenSpaceError || 2,
+          RIDE_MIN_SCREEN_SPACE_ERROR,
+        );
+    } else if (!on && savedRendering) {
+      viewer.targetFrameRate = savedRendering.fps;
+      if (globe && Number.isFinite(savedRendering.sse))
+        globe.maximumScreenSpaceError = savedRendering.sse;
+      savedRendering = null;
+    }
+  }
+
+  /** Ride view hides the app's panels and HUD so the road and turn stay readable. */
+  function setRideView(on) {
+    doc.body.classList.toggle('nav-ride', on);
+    el.mapUi.setAttribute('aria-pressed', String(!on));
+    el.mapUi.textContent = on ? '☰ MAP UI' : '✕ MAP UI';
   }
 
   function updateLive(fix) {
@@ -542,8 +649,19 @@ export function createNavigationPanel({
     if (!navigating || !current) return;
     const progress = routeProgress(current, fix, routeCache);
     if (!progress) return;
+    const onRoad = !progress.offRoute && !progress.approachingStart;
+    smoother.observe({
+      time: Date.now(),
+      lat: fix.lat,
+      lon: fix.lon,
+      alongM: onRoad ? progress.alongM : null,
+      speedMps: fix.speedMps,
+      heading: onRoad ? null : fix.heading,
+    });
+    el.speed.textContent = formatSpeedKmh(smoother.speedMps);
     if (progress.arrived) {
-      el.nextDist.textContent = '🏁';
+      el.nextArrow.textContent = '🏁';
+      el.nextDist.textContent = '';
       el.nextInstr.textContent = 'You have arrived';
       el.liveMeta.textContent = el.to.value ? String(el.to.value) : '';
       speak('You have arrived');
@@ -567,6 +685,7 @@ export function createNavigationPanel({
       directions()?.placeEndpoint?.('a', { lat: fix.lat, lon: fix.lon });
     }
     const step = current.steps[progress.nextStepIndex];
+    el.nextArrow.textContent = onRoad ? maneuverArrow(step) : '⚠';
     el.nextDist.textContent =
       progress.toNextStepM === null
         ? ''
@@ -592,13 +711,16 @@ export function createNavigationPanel({
       );
     }
     if (!rerouting && !progress.offRoute) setStatus('');
-    followCamera(fix, progress);
   }
 
   function onFix(fix) {
     if (destroyed) return;
     lastFix = fix;
-    showMarker(fix);
+    if (navigating && marker) {
+      const radius = Math.max(5, Math.min(fix.accuracyM || 15, 2000));
+      marker.ellipse.semiMajorAxis = radius;
+      marker.ellipse.semiMinorAxis = radius;
+    } else showMarker(fix);
     updateLive(fix);
   }
 
@@ -623,10 +745,18 @@ export function createNavigationPanel({
     el.live.hidden = false;
     el.recenter.hidden = true;
     el.start.disabled = true;
+    el.nextArrow.textContent = maneuverArrow(route.steps[1] || route.steps[0]);
     el.nextDist.textContent = '—';
     el.nextInstr.textContent = 'Waiting for GPS…';
+    el.speed.textContent = '';
     el.liveMeta.textContent = summary(route);
     setStatus('');
+    smoother.reset();
+    floor = { value: null, target: null, checkedAt: 0, lastFrame: 0 };
+    setRideView(true);
+    lightenRendering(true);
+    if (lastFix) showMarker(lastFix);
+    startFrameLoop();
     void holdWakeLock();
     stopWatch = watchFixes(onFix, (message) => setStatus(message, 'error'), {
       win,
@@ -644,10 +774,14 @@ export function createNavigationPanel({
       /* already released */
     }
     wakeLock = null;
+    stopFrameLoop();
+    lightenRendering(false);
+    setRideView(false);
     if (!navigating) return;
     navigating = false;
     followPaused = false;
     rerouting = false;
+    if (lastFix) showMarker(lastFix);
     try {
       win?.speechSynthesis?.cancel();
     } catch {
@@ -912,11 +1046,20 @@ export function createNavigationPanel({
   on(el.modes, 'click', (event) => {
     const chip = event.target.closest?.('[data-mode]');
     if (!chip || chip.dataset.mode === mode) return;
+    const previousProfile = routingProfile(mode);
     mode = chip.dataset.mode;
     syncModes();
-    // The layer reroutes for the new mode when both ends are placed.
-    if (route || directions()?.getRoute?.()?.b)
-      directions()?.setParams?.({ mode });
+    try {
+      win?.localStorage?.setItem(MODE_KEY, mode);
+    } catch {
+      /* storage blocked */
+    }
+    // The layer reroutes when the profile changes and both ends are placed.
+    if (
+      routingProfile(mode) !== previousProfile &&
+      (route || directions()?.getRoute?.()?.b)
+    )
+      directions()?.setParams?.({ mode: routingProfile(mode) });
   });
   on(el.route, 'click', () => void planRoute());
   for (const [input, kind] of [
@@ -945,7 +1088,9 @@ export function createNavigationPanel({
   on(el.recenter, 'click', () => {
     followPaused = false;
     el.recenter.hidden = true;
-    if (lastFix) updateLive(lastFix);
+  });
+  on(el.mapUi, 'click', () => {
+    if (navigating) setRideView(!doc.body.classList.contains('nav-ride'));
   });
   on(el.voice, 'click', () => {
     voiceOn = !voiceOn;
@@ -966,6 +1111,14 @@ export function createNavigationPanel({
 
   return {
     locate,
+    /** Development diagnostics for QA scripts. */
+    debugState: () => ({
+      navigating,
+      followPaused,
+      frames: debug.frames,
+      pose: debug.pose && { ...debug.pose },
+      speedMps: smoother.speedMps,
+    }),
     destroy() {
       destroyed = true;
       stopNavigation({ quiet: true });

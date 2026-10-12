@@ -102,6 +102,13 @@ export function createApplicationTools({
       shell: styleManager,
       placeSearch,
     });
+    // Dev-only QA handle (smoothness checks in the preview browser).
+    if (import.meta.env?.DEV) {
+      window.__eklautaNav = navigation;
+      defer(() => {
+        if (window.__eklautaNav === navigation) delete window.__eklautaNav;
+      });
+    }
     defer(() => navigation.destroy());
   }
   if (startChrome)
